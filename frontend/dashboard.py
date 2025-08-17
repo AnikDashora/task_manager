@@ -5,14 +5,29 @@ from datetime import datetime, timedelta, date  # ✅ recommended
 
 # Generate sample task data
 dates_data = {
-   
+# Generate realistic random sample data for the last 7 days}}
 }
-# Add tomorrow's date
-dates_data[(date.today() + timedelta(days=0)).strftime("%Y-%m-%d")] = {}
-dates_data[(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")] = {
-    "Task 1":"Incomplete",
-    "Task 2":"Completed"
+
+dates_data[(date.today() - timedelta(days=0)).strftime("%Y-%m-%d")] = {
+    "Task1" : "Incomplete",
+    "Task2" : "Complete",
+    "Task3" : "Incomplete",
+    "Task4" : "Complete",
+    "Task5" : "Complete",
+    "Task6" : "Incomplete",
+    "Task7" : "Complete"
 }
+dates_data[(date.today() - timedelta(days=1)).strftime("%Y-%m-%d")] = {
+    "Task1" : "Incomplete",
+    "Task2" : "Complete",
+    "Task3" : "Incomplete",
+    "Task4" : "Complete",
+    "Task5" : "Complete",
+    "Task6" : "Incomplete",
+    "Task7" : "Complete"
+}
+
+
 
 def get_date_detail(date_str: str) -> str:
     """
@@ -68,9 +83,20 @@ def get_task_status(current_date_task: dict) -> str:
         return "No Task"
 
     total_tasks = len(current_date_task)
-    completed_tasks = sum(1 for status in current_date_task.values() if status == "Completed")
+    completed_tasks = sum(1 for status in current_date_task.values() if status == "Complete")
 
     return f"{completed_tasks}/{total_tasks}"
+
+def get_progress_percent(current_date_task: dict) -> int:
+    if not current_date_task:  # no tasks
+        return 0
+
+    total_tasks = len(current_date_task)
+    completed_tasks = sum(1 for status in current_date_task.values() if status == "Complete")
+    if(completed_tasks == 0 or total_tasks == 0):
+        return 0
+    else:
+        return int((completed_tasks/total_tasks)*100)
 
 def get_task_exist(current_date_tasks: dict) -> bool:
     """
@@ -101,10 +127,10 @@ if("theme" not in st.session_state):
     st.session_state["theme"] = "light"
 
 if("tasks" not in st.session_state):
-    st.session_state["tasks"] = {}
+    st.session_state["tasks"] = dates_data
 
 
-def make_grapg(total_task_all_day=12, completed_task=None, days=10,
+def make_grapg(total_task_all_day=12, completed_task=None, days=350,
                completed_color="#4caf50", remaining_color="#9fa8da", line_color="orange"):
     """
     Generate ECharts options for a task progress graph.
@@ -174,7 +200,6 @@ def make_grapg(total_task_all_day=12, completed_task=None, days=10,
     )
 
     return options
-
 
 def change_theme():
     if(st.session_state["theme"] == "light"):
@@ -1638,6 +1663,7 @@ empty_date_styles = """
             background: transparent !important;
             padding: 0 !important;
             margin: 0 !important;
+            height:initial;
         }
 
         /* ===== EMPTY STATE ===== */
@@ -1766,7 +1792,8 @@ empty_date_styles = """
         
 """
 
-fill_date_styles = """       
+fill_date_styles = """ 
+      
         .stVerticalBlock.st-key-tasks-grid  {
             display: grid !important;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
@@ -1777,8 +1804,7 @@ fill_date_styles = """
         }
 
         /* ===== DATE CARDS ===== */
-        .stVerticalBlock.st-key-date-card-1,
-        .stVerticalBlock.st-key-date-card-2 {
+        .stVerticalBlock[class *= "st-key-date-card"] {
             background: var(--card-bg) !important;
             border-radius: 16px !important;
             padding: 20px !important;
@@ -1786,23 +1812,21 @@ fill_date_styles = """
             border: 1px solid var(--border-color) !important;
             transition: all 0.3s ease !important;
             margin: 0 !important;
+            min-height:450px;
         }
 
-        .stVerticalBlock.st-key-date-card-1:hover,
-        .stVerticalBlock.st-key-date-card-2:hover {
+        .stVerticalBlock[class *= "st-key-date-card"]:hover {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
         }
 
-        .stVerticalBlock.st-key-date-card-1 .st-emotion-cache-18kf3ut,
-        .stVerticalBlock.st-key-date-card-2 .st-emotion-cache-18kf3ut {
+        .stVerticalBlock[class *= "st-key-date-card"] .st-emotion-cache-18kf3ut {
             background: transparent !important;
             padding: 0 !important;
             margin: 0 !important;
         }
 
         /* ===== DATE CARD HEADERS ===== */
-        .stVerticalBlock.st-key-date-card-header-1,
-        .stVerticalBlock.st-key-date-card-header-2 {
+        .stVerticalBlock[class *= "st-key-task-card-header-"] {
             display: flex !important;
             flex-direction: row !important;
             justify-content: space-between !important;
@@ -1811,8 +1835,7 @@ fill_date_styles = """
             padding: 0 !important;
         }
 
-        .stVerticalBlock.st-key-date-card-header-1 .st-emotion-cache-18kf3ut,
-        .stVerticalBlock.st-key-date-card-header-2 .st-emotion-cache-18kf3ut {
+        .stVerticalBlock[class *= "st-key-task-card-header-"] .st-emotion-cache-18kf3ut {
             display: flex !important;
             flex-direction: row !important;
             justify-content: space-between !important;
@@ -1878,14 +1901,12 @@ fill_date_styles = """
         }
 
         /* ===== REMOVE DATE BUTTONS ===== */
-        .stElementContainer.st-key-remove-date-btn-1,
-        .stElementContainer.st-key-remove-date-btn-2 {
+        .stElementContainer[class *= "st-key-remove-date-btn-"] {
             margin: 0 !important;
             padding: 0 !important;
         }
 
-        .stElementContainer.st-key-remove-date-btn-1 button,
-        .stElementContainer.st-key-remove-date-btn-2 button {
+        .stElementContainer[class *= "st-key-remove-date-btn-"] button {
             width: 28px !important;
             height: 28px !important;
             border: none !important;
@@ -1901,8 +1922,7 @@ fill_date_styles = """
             min-height: auto !important;
         }
 
-        .stElementContainer.st-key-remove-date-btn-1 button:hover,
-        .stElementContainer.st-key-remove-date-btn-2 button:hover {
+        .stElementContainer[class *= "st-key-remove-date-btn-"] button:hover {
             background: var(--badge-bg-attention) !important;
             color: var(--badge-color-attention) !important;
         }
@@ -1916,31 +1936,24 @@ fill_date_styles = """
             overflow: hidden !important;
             position: relative !important;
         }
-
-        .progress-bar::after {
-            content: '' !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
+        .progress-fill{
             height: 100% !important;
-            width: 50% !important; /* This should be dynamic based on task completion */
             background: var(--progress-fill-bg) !important;
             border-radius: 3px !important;
             transition: width 0.3s ease !important;
         }
 
         /* ===== ADD TASK FORMS ===== */
-        .stVerticalBlock.st-key-add-task-form-1,
-        .stVerticalBlock.st-key-add-task-form-2 {
+        .stVerticalBlock[class *= "st-key-add-task-form-"] {
             display: flex !important;
+            align-items:center !important;
             flex-direction: row !important;
             gap: 8px !important;
             background: transparent !important;
             padding: 0 !important;
         }
 
-        .stVerticalBlock.st-key-add-task-form-1 .st-emotion-cache-18kf3ut,
-        .stVerticalBlock.st-key-add-task-form-2 .st-emotion-cache-18kf3ut {
+        .stVerticalBlock[class *= "st-key-add-task-form-"] .st-emotion-cache-18kf3ut{
             display: flex !important;
             flex-direction: row !important;
             align-items: flex-end !important;
@@ -1952,50 +1965,57 @@ fill_date_styles = """
         }
 
         /* ===== TASK INPUTS ===== */
-        .stElementContainer.st-key-task-input-1,
-        .stElementContainer.st-key-task-input-2 {
+        .stElementContainer[class *= "st-key-task-input-"] {
             flex: 1 !important;
             margin: 0 !important;
             padding: 0 !important;
         }
 
-        .stElementContainer.st-key-task-input-1 .stTextInput,
-        .stElementContainer.st-key-task-input-2 .stTextInput {
+        .stElementContainer[class *= "st-key-task-input-"] .stTextInput {
             margin: 0 !important;
         }
-
-        .stElementContainer.st-key-task-input-1 label,
-        .stElementContainer.st-key-task-input-2 label {
+        
+        .stElementContainer[class *= "st-key-task-input-"] label {
             display: none !important;
         }
 
-        .stElementContainer.st-key-task-input-1 input,
-        .stElementContainer.st-key-task-input-2 input {
+        div[data-testid="stTextInputRootElement"]{
+            border-radius: 10px !important;
+            border:none !important;
+            border-color:transparent !important;
+            width:100% !important;
+            height:100% !important;
+        }
+
+        .stElementContainer[class *= "st-key-task-input-"] input {
             padding: 8px 12px !important;
-            border: 1px solid var(--task-input-border) !important;
-            border-radius: 8px !important;
+            border: 2px solid var(--task-input-border) !important;
+            border-radius: 10px !important;
             font-size: 14px !important;
             background: var(--task-input-bg) !important;
             color: var(--text-color) !important;
             width: 100% !important;
         }
 
-        .stElementContainer.st-key-task-input-1 input:focus,
-        .stElementContainer.st-key-task-input-2 input:focus {
+        .stElementContainer[class *= "st-key-task-input-"] input::placeholder{
+            color:var(--text-color) !important;
+            opacity:50% !important;
+        }
+
+
+        .stElementContainer[class *= "st-key-task-input-"] input:focus {
             outline: none !important;
             border-color: var(--task-input-focus-border) !important;
             box-shadow: var(--task-input-focus-shadow) !important;
         }
 
         /* ===== ADD TASK BUTTONS ===== */
-        .stElementContainer.st-key-add-task-btn-1,
-        .stElementContainer.st-key-add-task-btn-2 {
+        .stElementContainer[class *= "st-key-add-task-btn-"] {
             margin: 0 !important;
             padding: 0 !important;
         }
 
-        .stElementContainer.st-key-add-task-btn-1 button,
-        .stElementContainer.st-key-add-task-btn-2 button {
+        .stElementContainer[class *= "st-key-add-task-btn-"] button {
             padding: 8px 12px !important;
             background: var(--add-task-btn-bg) !important;
             color: white !important;
@@ -2011,35 +2031,34 @@ fill_date_styles = """
             width: fit-content !important;
         }
 
-        .stElementContainer.st-key-add-task-btn-1 button:hover,
-        .stElementContainer.st-key-add-task-btn-2 button:hover {
+        .stElementContainer[class *= "st-key-add-task-btn-"] button:hover {
             background: var(--add-task-btn-hover-bg) !important;
         }
 
         /* ===== TASK LISTS ===== */
-        .stVerticalBlock.st-key-task-list-1,
-        .stVerticalBlock.st-key-task-list-2 {
+        .stVerticalBlock[class *= "st-key-task-list-"] {
             max-height: 250px !important;
             overflow-y: auto !important;
             background: transparent !important;
             padding: 0 !important;
             margin: 0 !important;
+            gap:0.25rem;
         }
 
-        .stVerticalBlock.st-key-task-list-1 .st-emotion-cache-18kf3ut,
-        .stVerticalBlock.st-key-task-list-2 .st-emotion-cache-18kf3ut {
+        .stVerticalBlock[class *= "st-key-task-list-"] .st-emotion-cache-18kf3ut {
             background: transparent !important;
             padding: 0 !important;
             margin: 0 !important;
         }
 
         /* ===== TASK ITEMS ===== */
-        .stVerticalBlock.st-key-task-item-1,
-        .stVerticalBlock.st-key-task-item-completed-2 {
+        .stVerticalBlock[class *= "st-key-task-item-"],
+        .stVerticalBlock[class *= "st-key-task-completed-item-"] {
             display: flex !important;
             flex-direction: row !important;
             align-items: flex-start !important;
-            gap: 12px !important;
+            justify-content:space-between !important;
+            gap: 8px !important;
             padding: 12px !important;
             border: 1px solid var(--task-item-border) !important;
             border-radius: 8px !important;
@@ -2047,21 +2066,21 @@ fill_date_styles = """
             transition: all 0.2s ease !important;
         }
 
-        .stVerticalBlock.st-key-task-item-1:hover,
-        .stVerticalBlock.st-key-task-item-completed-2:hover {
+        .stVerticalBlock[class *= "st-key-task-item-"]:hover,
+        .stVerticalBlock[class *= "st-key-task-completed-item-"]:hover {
             background: var(--task-item-hover-bg) !important;
         }
 
-        .stVerticalBlock.st-key-task-item-completed-2 {
+        .stVerticalBlock[class *= "st-key-task-completed-item-"] {
             background: var(--badge-bg-completion) !important;
             border-color: var(--badge-color-completion) !important;
         }
 
-        .stVerticalBlock.st-key-task-item-1 .st-emotion-cache-18kf3ut,
-        .stVerticalBlock.st-key-task-item-completed-2 .st-emotion-cache-18kf3ut {
+        .stVerticalBlock[class *= "st-key-task-item-"] .st-emotion-cache-18kf3ut,
+        .stVerticalBlock[class *= "st-key-task-completed-item-"] .st-emotion-cache-18kf3ut {
             display: flex !important;
             flex-direction: row !important;
-            align-items: flex-start !important;
+            align-items: center !important;
             gap: 12px !important;
             width: 100% !important;
             background: transparent !important;
@@ -2070,52 +2089,58 @@ fill_date_styles = """
         }
 
         /* ===== TASK CHECKBOXES ===== */
-        .stElementContainer.st-key-task-checkbox-1,
-        .stElementContainer.st-key-task-checkbox-2 {
+        .stElementContainer[class *= "st-key-task-checkbox-"],
+        .stElementContainer[class *= "st-key-task-checkbox-"] {
             margin: 0 !important;
             padding: 0 !important;
             flex-shrink: 0 !important;
+            width:85%;
         }
 
-        .stElementContainer.st-key-task-checkbox-1 .stCheckbox,
-        .stElementContainer.st-key-task-checkbox-2 .stCheckbox {
+        .stElementContainer[class *= "st-key-task-checkbox-"] .stCheckbox,
+        .stElementContainer[class *= "st-key-task-checkbox-"] .stCheckbox {
             margin: 0 !important;
             padding: 0 !important;
+            width:100%;
         }
 
-        .stElementContainer.st-key-task-checkbox-1 label,
-        .stElementContainer.st-key-task-checkbox-2 label {
+        .stElementContainer[class *= "st-key-task-checkbox-"] label,
+        .stElementContainer[class *= "st-key-task-checkbox-"] label {
             display: flex !important;
-            align-items: flex-start !important;
-            gap: 12px !important;
+            align-items: center !important;
+            gap: 6px !important;
             margin: 0 !important;
             padding: 0 !important;
             cursor: pointer !important;
+            width:100%;
         }
 
-        /* Custom checkbox styling */
-        .stElementContainer.st-key-task-checkbox-1 input[type="checkbox"],
-        .stElementContainer.st-key-task-checkbox-2 input[type="checkbox"] {
-            appearance: none !important;
-            width: 18px !important;
-            height: 18px !important;
-            border: 2px solid var(--task-checkbox-border) !important;
-            border-radius: 4px !important;
-            cursor: pointer !important;
-            position: relative !important;
-            flex-shrink: 0 !important;
-            margin: 2px 0 0 0 !important;
-            background: var(--task-input-bg) !important;
+        .stElementContainer[class *= "st-key-task-checkbox-"] span{
+            margin:0 !important;
         }
 
-        .stElementContainer.st-key-task-checkbox-1 input[type="checkbox"]:checked,
-        .stElementContainer.st-key-task-checkbox-2 input[type="checkbox"]:checked {
-            background: var(--primary-color) !important;
+        .stElementContainer[class *= "st-key-task-checkbox-"] span[class *= "st-e"]{
+            background-color: var(--primary-color) !important;
             border-color: var(--primary-color) !important;
         }
 
-        .stElementContainer.st-key-task-checkbox-1 input[type="checkbox"]:checked::after,
-        .stElementContainer.st-key-task-checkbox-2 input[type="checkbox"]:checked::after {
+        /* Custom checkbox styling */
+        .stElementContainer[class *= "st-key-task-checkbox-"] input[type="checkbox"]{
+                position: absolute !important;
+                opacity: 0 !important;
+                width: 20px !important;
+                height: 20px !important;
+                margin: 0 !important;
+                cursor: pointer !important;
+        }
+
+        .stElementContainer[class *= "st-key-task-checkbox-"] input[type="checkbox"]:checked{
+            background: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            
+        }
+
+        .stElementContainer[class *= "st-key-task-checkbox-"] input[type="checkbox"]:checked::after {
             content: '✓' !important;
             position: absolute !important;
             top: 50% !important;
@@ -2127,8 +2152,7 @@ fill_date_styles = """
         }
 
         /* Task text styling */
-        .stElementContainer.st-key-task-checkbox-1 .st-emotion-cache-17c7e5f p,
-        .stElementContainer.st-key-task-checkbox-2 .st-emotion-cache-17c7e5f p {
+        .stElementContainer[class *= "st-key-task-checkbox-"] .st-emotion-cache-17c7e5f p {
             font-size: 14px !important;
             line-height: 1.4 !important;
             color: var(--text-color) !important;
@@ -2139,19 +2163,17 @@ fill_date_styles = """
         }
 
         /* Completed task text styling */
-        .stVerticalBlock.st-key-task-item-completed-2 .st-emotion-cache-17c7e5f p {
+        .stVerticalBlock[class *= "st-key-task-completed-item-"] .st-emotion-cache-17c7e5f p {
             text-decoration: line-through !important;
             color: var(--primary-color) !important;
         }
 
         /* Hide default checkbox styling elements */
-        .stElementContainer.st-key-task-checkbox-1 .st-c6,
-        .stElementContainer.st-key-task-checkbox-2 .st-c6 {
+        .stElementContainer[class *= "st-key-task-checkbox-"] .st-c6{
             display: none !important;
         }
 
-        .stElementContainer.st-key-task-checkbox-1 .st-emotion-cache-y4bq5x,
-        .stElementContainer.st-key-task-checkbox-2 .st-emotion-cache-y4bq5x {
+        .stElementContainer[class *= "st-key-task-checkbox-"] .st-emotion-cache-y4bq5x {
             visibility: visible !important;
             flex: 1 !important;
             margin: 0 !important;
@@ -2159,15 +2181,13 @@ fill_date_styles = """
         }
 
         /* ===== REMOVE TASK BUTTONS ===== */
-        .stElementContainer.st-key-remove-task-btn-1,
-        .stElementContainer.st-key-remove-task-btn-2 {
+        .stElementContainer[class *= "st-key-remove-task-btn-"] {
             margin: 0 !important;
             padding: 0 !important;
             flex-shrink: 0 !important;
         }
 
-        .stElementContainer.st-key-remove-task-btn-1 button,
-        .stElementContainer.st-key-remove-task-btn-2 button {
+        .stElementContainer[class *= "st-key-remove-task-btn-"] button {
             width: 24px !important;
             height: 24px !important;
             border: none !important;
@@ -2184,8 +2204,7 @@ fill_date_styles = """
             min-height: auto !important;
         }
 
-        .stElementContainer.st-key-remove-task-btn-1 button:hover,
-        .stElementContainer.st-key-remove-task-btn-2 button:hover {
+        .stElementContainer[class *= "st-key-remove-task-btn-"] button:hover {
             background: var(--badge-bg-attention) !important;
             color: var(--badge-color-attention) !important;
         }
@@ -2263,12 +2282,7 @@ fill_date_styles = """
             font-size: 14px !important;
         }
 
-        .stVerticalBlock.st-key-empty-state .stElementContainer.st-key-add-date-btn-2 {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            width: 100% !important;
-        }
+        
 
         /* ===== UTILITY CLASSES ===== */
         .svg-icon {
@@ -2330,18 +2344,19 @@ fill_date_styles = """
         }
 
         /* ===== ICON STYLING ===== */
-        .stElementContainer.st-key-add-date-btn-1 [data-testid="stIconMaterial"],
-        .stElementContainer.st-key-add-date-btn-2 [data-testid="stIconMaterial"],
-        .stElementContainer.st-key-add-task-btn-1 [data-testid="stIconMaterial"],
-        .stElementContainer.st-key-add-task-btn-2 [data-testid="stIconMaterial"],
-        .stElementContainer.st-key-remove-date-btn-1 [data-testid="stIconMaterial"],
-        .stElementContainer.st-key-remove-date-btn-2 [data-testid="stIconMaterial"],
-        .stElementContainer.st-key-remove-task-btn-1 [data-testid="stIconMaterial"],
-        .stElementContainer.st-key-remove-task-btn-2 [data-testid="stIconMaterial"] {
+        .stElementContainer[class *= "st-key-add-task-btn-"] [data-testid="stIconMaterial"],
+        .stElementContainer[class *= "st-key-remove-date-btn-"] [data-testid="stIconMaterial"],
+        .stElementContainer[class *= "st-key-remove-task-btn-"] [data-testid="stIconMaterial"],
+        .stElementContainer[class *= "st-key-remove-task-btn-"] [data-testid="stIconMaterial"] {
             font-size: 16px !important;
             line-height: 1 !important;
             margin: 0 !important;
             padding: 0 !important;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            width:100%;
+            height:100%;
         }
 
         /* ===== STREAMLIT ELEMENT OVERRIDES ===== */
@@ -2370,44 +2385,22 @@ fill_date_styles = """
             gap: 0 !important;
         }
 
-        /* Fix for button text alignment */
-        .stElementContainer.st-key-add-date-btn-1 .st-emotion-cache-cli92z,
-        .stElementContainer.st-key-add-date-btn-2 .st-emotion-cache-cli92z {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            gap: 8px !important;
-        }
+        
 
-        .stElementContainer.st-key-add-date-btn-1 .st-emotion-cache-17c7e5f,
-        .stElementContainer.st-key-add-date-btn-2 .st-emotion-cache-17c7e5f {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        .stElementContainer.st-key-add-date-btn-1 .st-emotion-cache-17c7e5f p,
-        .stElementContainer.st-key-add-date-btn-2 .st-emotion-cache-17c7e5f p {
-            margin: 0 !important;
-            padding: 0 !important;
-            font-size: 14px !important;
-            font-weight: 500 !important;
-            color: inherit !important;
-        }
+        
 
         /* Fix for icon containers */
-        .stElementContainer.st-key-add-task-btn-1 .st-emotion-cache-1kfcwut,
-        .stElementContainer.st-key-add-task-btn-2 .st-emotion-cache-1kfcwut,
-        .stElementContainer.st-key-remove-date-btn-1 .st-emotion-cache-1kfcwut,
-        .stElementContainer.st-key-remove-date-btn-2 .st-emotion-cache-1kfcwut,
-        .stElementContainer.st-key-remove-task-btn-1 .st-emotion-cache-1kfcwut,
-        .stElementContainer.st-key-remove-task-btn-2 .st-emotion-cache-1kfcwut {
+        .stElementContainer[class *= "st-key-add-task-btn-"] .st-emotion-cache-1kfcwut,
+        .stElementContainer[class *= "st-key-remove-date-btn-"] .st-emotion-cache-1kfcwut,
+        .stElementContainer[class *= "st-key-remove-task-btn-"] .st-emotion-cache-1kfcwut,
+        .stElementContainer[class *= "st-key-remove-task-btn-"] .st-emotion-cache-1kfcwut {
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
             margin: 0 !important;
             padding: 0 !important;
+            width:100%;
+            height:100%;
         }
 """
 
@@ -2687,7 +2680,7 @@ def dashboard_page():
                     task_count = 0
                     for date_count in range(len(dates_data.keys())):
                         with st.container(key = f"date-card-{date_count+1}"):
-                            with st.container(key = f"date-card-header-{date_count+1}"):
+                            with st.container(key = f"task-card-header-{date_count+1}"):
                                 st.markdown(
                                     f"""
                                     <div class="date-info">
@@ -2718,7 +2711,7 @@ def dashboard_page():
                                 st.markdown(
                                     f"""
                                     <div class="progress-bar">
-                                        <div class="progress-fill" style="width: 50%;></div>
+                                        <div class="progress-fill" style="width: {get_progress_percent(dates_data[list(dates_data.keys())[date_count]])}%;"></div>
                                     </div>
                                     """,
                                     unsafe_allow_html=True
@@ -2763,7 +2756,7 @@ def dashboard_page():
                                     for current_task,current_task_status in current_date_task.items():
                                         if(current_task_status == "Incomplete"):
                                             with st.container(key = f"task-item-{task_count+1}"):
-                                                st.checkbox(
+                                                check = st.checkbox(
                                                     label=current_task,
                                                     key = f"task-checkbox-{task_count+1}"
                                                 )
@@ -2773,9 +2766,9 @@ def dashboard_page():
                                                     type = "tertiary",
                                                     key = f"remove-task-btn-{task_count+1}"
                                                 )
-                                        elif(current_task_status == "Completed"):
-                                            with st.container(key = f"task-item-completed-{task_count+1}"):
-                                                st.checkbox(
+                                        elif(current_task_status == "Complete"):
+                                            with st.container(key = f"task-completed-item-{task_count+1}"):
+                                                check = st.checkbox(
                                                     label=current_task,
                                                     key = f"task-checkbox-{task_count+1}",
                                                     value=True
@@ -2786,5 +2779,6 @@ def dashboard_page():
                                                     type = "tertiary",
                                                     key = f"remove-task-btn-{task_count+1}"
                                                 )
-                                        task_count += 1
+                                        task_count += 1                
+
 dashboard_page()
