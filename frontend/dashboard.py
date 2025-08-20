@@ -104,7 +104,6 @@ def if_task_completed(current_task: str, current_date_task: dict) -> bool:
     """
     return current_date_task.get(current_task) == "Completed"
 
-
 def make_grapg(total_task_all_day=12, completed_task=None, days=31,
                completed_color="#4caf50", remaining_color="#9fa8da", line_color="orange"):
     """
