@@ -2,7 +2,7 @@ import pymysql
 from pymysql.cursors import DictCursor
 
 class SqlConnection:
-    def __init__(self, database="task_manager"):
+    def __init__(self, database="task_flow"):
         self.host = "127.0.0.1"
         self.user = "root"
         self.password = "root"

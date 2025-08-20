@@ -2,32 +2,13 @@ import streamlit as st
 import random
 from streamlit_echarts import st_echarts
 from datetime import datetime, timedelta, date  # ✅ recommended
-
-# Generate sample task data
-dates_data = {
-# Generate realistic random sample data for the last 7 days}}
-}
-
-dates_data[(date.today() - timedelta(days=0)).strftime("%Y-%m-%d")] = {
-    "Task1" : "Incomplete",
-    "Task2" : "Complete",
-    "Task3" : "Incomplete",
-    "Task4" : "Complete",
-    "Task5" : "Complete",
-    "Task6" : "Incomplete",
-    "Task7" : "Complete"
-}
-dates_data[(date.today() - timedelta(days=1)).strftime("%Y-%m-%d")] = {
-    "Task1" : "Incomplete",
-    "Task2" : "Complete",
-    "Task3" : "Incomplete",
-    "Task4" : "Complete",
-    "Task5" : "Complete",
-    "Task6" : "Incomplete",
-    "Task7" : "Complete"
-}
-
-
+import os
+import sys
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(parent_dir)
+from models.task_model import UserTasks
+from models.user_model import User
+from models.task_model import UserTasks
 
 def get_date_detail(date_str: str) -> str:
     """
@@ -121,16 +102,10 @@ def if_task_completed(current_task: str, current_date_task: dict) -> bool:
     Returns:
         bool: True if the task exists and is marked 'Complete', else False
     """
-    return current_date_task.get(current_task) == "Complete"
-
-if("theme" not in st.session_state):
-    st.session_state["theme"] = "light"
-
-if("tasks" not in st.session_state):
-    st.session_state["tasks"] = dates_data
+    return current_date_task.get(current_task) == "Completed"
 
 
-def make_grapg(total_task_all_day=12, completed_task=None, days=350,
+def make_grapg(total_task_all_day=12, completed_task=None, days=31,
                completed_color="#4caf50", remaining_color="#9fa8da", line_color="orange"):
     """
     Generate ECharts options for a task progress graph.
@@ -202,10 +177,13 @@ def make_grapg(total_task_all_day=12, completed_task=None, days=350,
     return options
 
 def change_theme():
-    if(st.session_state["theme"] == "light"):
-        st.session_state["theme"] = "dark"
+    if(st.session_state["user"].theme == "Light"):
+        st.session_state["user"].theme = "Dark"
     else:
-        st.session_state["theme"] = "light"
+        st.session_state["user"].theme = "Light"
+
+def modal_toggle():
+    st.session_state["modal_show"] = not(st.session_state["modal_show"])
 
 root_variables = [# 0 for light theme and 1 for dark theme
     """:root{
@@ -360,14 +338,44 @@ root_variables = [# 0 for light theme and 1 for dark theme
     """
 ]
 
-if(st.session_state["theme"] == "light"):
-    root_theme = root_variables[0] #light theme
-else:
-    root_theme = root_variables[1] #dark theme
-
-root_style = f"""
-    {root_theme}
-"""
+modal_variable = [# 0 for none and 1 for show
+    """
+    .stVerticalBlock.st-key-modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height:100% !important;
+    background: var(--modal-overlay-bg) !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 1000 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: all 0.3s ease !important;
+    backdrop-filter:blur(4px);
+    }
+    """,
+    """
+    .stVerticalBlock.st-key-modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height:100% !important;
+    background: var(--modal-overlay-bg) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 1000 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: all 0.3s ease !important;
+    backdrop-filter:blur(4px);
+    }
+    """
+]
 
 remove_header_footer = """
     #MainMenu {visibility: hidden;}
@@ -476,7 +484,7 @@ header_styles = """
             top:0 !important;
             backdrop-filter: blur(8px) !important;
             background: transparent !important;
-            z-index: 100 !important;
+            z-index: 10000 !important;
         }
 
         /* Header main - maps to original .header-main */
@@ -2119,10 +2127,7 @@ fill_date_styles = """
             margin:0 !important;
         }
 
-        .stElementContainer[class *= "st-key-task-checkbox-"] span[class *= "st-e"]{
-            background-color: var(--primary-color) !important;
-            border-color: var(--primary-color) !important;
-        }
+        
 
         /* Custom checkbox styling */
         .stElementContainer[class *= "st-key-task-checkbox-"] input[type="checkbox"]{
@@ -2404,28 +2409,495 @@ fill_date_styles = """
         }
 """
 
+modal_style = """
 
-styles = f"""
-<style>
-{root_style}
-{remove_header_footer}
-{page_setup}
-{header_styles}
-{kpi_styles}
-{chart_styles}
-{empty_date_styles}
-{fill_date_styles}
-</style>
+.stVerticalBlock.st-key-modal-overlay .st-emotion-cache-18kf3ut {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ===== MODAL CONTAINER MAPPING ===== */
+/* Maps to original .modal */
+.stVerticalBlock.st-key-modal {
+    background: var(--modal-bg) !important;
+    border-radius: 16px !important;
+    max-width: 500px !important;
+    width: 90% !important;
+    max-height: max-content !important;
+    overflow-y: auto !important;
+    transform: scale(1) !important;
+    transition: transform 0.3s ease !important;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25) !important;
+}
+
+.stVerticalBlock.st-key-modal .st-emotion-cache-18kf3ut {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* ===== MODAL HEADER MAPPING ===== */
+/* Maps to original .modal-header */
+.modal-header {
+    padding: 24px 24px 0 !important;
+    border-bottom: none !important;
+}
+
+.modal-header-content {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+}
+
+.modal-icon {
+    width: 40px !important;
+    height: 40px !important;
+    background: var(--modal-icon-bg) !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.modal-icon svg {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+.modal-title {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: var(--text-color) !important;
+    margin: 0 0 4px !important;
+}
+h3#add-new-date{
+    padding:0;
+
+}
+.modal-description {
+    font-size: 14px !important;
+    color: var(--card-title-color) !important;
+    margin: 0 !important;
+}
+
+/* Hide Streamlit heading action elements */
+.st-emotion-cache-gi0tri {
+    display: none !important;
+}
+
+/* ===== MODAL CONTENT MAPPING ===== */
+/* Maps to original .modal-content */
+.stVerticalBlock.st-key-modal-content {
+    padding: 24px !important;
+    background: transparent !important;
+}
+
+.stVerticalBlock.st-key-modal-content .st-emotion-cache-18kf3ut {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 24px !important;
+}
+
+/* ===== FORM SECTIONS MAPPING ===== */
+/* Maps to original .form-section */
+.stVerticalBlock.st-key-form-section {
+    margin-bottom: 24px !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+.stVerticalBlock.st-key-form-section:last-child {
+    margin-bottom: 0 !important;
+}
+
+.stVerticalBlock.st-key-form-section .st-emotion-cache-18kf3ut {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 12px !important;
+}
+
+/* ===== DATE INPUT CONTAINER MAPPING ===== */
+/* Maps to original .date-input-container */
+.stVerticalBlock.st-key-date-input-container {
+    position: relative !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.stVerticalBlock.st-key-date-input-container .st-emotion-cache-18kf3ut {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    position: relative !important;
+}
+
+/* Date input icon styling */
+.date-input-icon {
+    position: absolute !important;
+    left: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--filter-icon-color) !important;
+    pointer-events: none !important;
+    z-index: 10 !important;
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* ===== DATE INPUT FIELD MAPPING ===== */
+/* Maps to original .date-input */
+.stElementContainer.st-key-date-input {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.stElementContainer.st-key-date-input .stDateInput {
+    margin: 0 !important;
+}
+
+.stElementContainer.st-key-date-input label {
+    display: none !important;
+}
+
+/* Streamlit date input wrapper */
+.stElementContainer.st-key-date-input .st-ae {
+    width: 100% !important;
+    position: relative !important;
+}
+
+.stElementContainer.st-key-date-input .st-af {
+    width: 100% !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--task-input-border) !important;
+    background: var(--task-input-bg) !important;
+}
+
+/* Date input field styling */
+.stElementContainer.st-key-date-input input {
+    width: 100% !important;
+    padding: 12px 16px 12px 44px !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    background: transparent !important;
+    color: var(--text-color) !important;
+}
+
+.stElementContainer.st-key-date-input input:focus {
+    outline: none !important;
+    box-shadow: var(--task-input-focus-shadow) !important;
+}
+
+.stElementContainer.st-key-date-input input::placeholder {
+    color: var(--card-title-color) !important;
+    opacity: 0.7 !important;
+}
+
+/* ===== DATE PREVIEW MAPPING ===== */
+/* Maps to original .date-preview */
+.date-preview {
+    background: var(--modal-icon-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    padding: 16px !important;
+    margin-top: 16px !important;
+}
+
+.date-preview-content {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 14px !important;
+}
+
+.date-preview-label {
+    font-weight: 500 !important;
+    color: var(--text-color) !important;
+}
+
+.date-preview-value {
+    color: var(--text-color) !important;
+}
+
+.date-preview svg {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* ===== MODAL ACTIONS MAPPING ===== */
+/* Maps to original .modal-actions */
+.stVerticalBlock.st-key-modal-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    flex-direction:row;
+    gap: 12px !important;
+    padding-top: 16px !important;
+    border-top: 1px solid var(--border-color) !important;
+    background: transparent !important;
+    margin: 0 !important;
+}
+
+.stVerticalBlock.st-key-modal-actions .st-emotion-cache-18kf3ut {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 12px !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+/* ===== MODAL BUTTONS MAPPING ===== */
+/* Maps to original .btn-cancel */
+.stElementContainer.st-key-btn-cancel {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.stElementContainer.st-key-btn-cancel button {
+    padding: 8px 16px !important;
+    border: 1px solid var(--task-input-border) !important;
+    border-radius: 8px !important;
+    background: var(--task-input-bg) !important;
+    color: var(--text-color) !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    transition: all 0.2s ease !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+.stElementContainer.st-key-btn-cancel button:hover {
+    background: var(--task-item-hover-bg) !important;
+}
+
+/* Maps to original .btn-submit */
+.stElementContainer.st-key-btn-submit {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.stElementContainer.st-key-btn-submit button {
+    padding: 10px 16px !important;
+    background: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transition: all 0.2s ease !important;
+    min-height: auto !important;
+    height: auto !important;
+}
+
+.stElementContainer.st-key-btn-submit button:hover {
+    background: var(--add-task-btn-hover-bg) !important;
+}
+
+.stElementContainer.st-key-btn-submit button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+/* ===== ICON STYLING FOR MODAL BUTTONS ===== */
+.stElementContainer.st-key-btn-submit [data-testid="stIconMaterial"] {
+    font-size: 16px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.stElementContainer.st-key-btn-submit .st-emotion-cache-cli92z {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.stElementContainer.st-key-btn-submit .st-emotion-cache-17c7e5f {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.stElementContainer.st-key-btn-submit .st-emotion-cache-17c7e5f p {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: inherit !important;
+}
+
+/* ===== UTILITY CLASSES ===== */
+.svg-icon {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+.svg-icon-sm {
+    width: 12px !important;
+    height: 12px !important;
+}
+
+.card-svg-icon {
+    width: 24px !important;
+    height: 24px !important;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 640px) {
+    .stAppViewContainer {
+        padding: 0 20px !important;
+    }
+
+    .stVerticalBlock.st-key-modal {
+        width: 95% !important;
+        max-height: 95vh !important;
+    }
+
+    .modal-header {
+        padding: 20px 20px 0 !important;
+    }
+
+    .stVerticalBlock.st-key-modal-content {
+        padding: 20px !important;
+    }
+
+    .stVerticalBlock.st-key-modal-actions .st-emotion-cache-18kf3ut {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .stElementContainer.st-key-btn-cancel button,
+    .stElementContainer.st-key-btn-submit button {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+}
+
+/* ===== TYPOGRAPHY OVERRIDES ===== */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-color) !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+p {
+    color: var(--text-color) !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* ===== STREAMLIT COMPONENT OVERRIDES ===== */
+.stElementContainer {
+    margin: 0 !important;
+}
+
+.stButton {
+    margin: 0 !important;
+}
+
+.stDateInput {
+    margin: 0 !important;
+}
+
+.stMarkdown {
+    margin: 0 !important;
+}
+
+/* Fix for nested layout gaps */
+.st-emotion-cache-18kf3ut {
+    gap: 0 !important;
+}
+
+/* ===== ADDITIONAL STREAMLIT OVERRIDES ===== */
+/* Fix button containers */
+.stElementContainer.st-key-btn-cancel .st-emotion-cache-8atqhb,
+.stElementContainer.st-key-btn-submit .st-emotion-cache-8atqhb {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Fix icon containers in buttons */
+.stElementContainer.st-key-btn-submit .st-emotion-cache-1kfcwut {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Ensure proper button styling inheritance */
+.stElementContainer.st-key-btn-cancel .stButton button,
+.stElementContainer.st-key-btn-submit .stButton button {
+    font-family: inherit !important;
+    font-weight: 500 !important;
+}
+
+/* Fix date input focus states */
+.stElementContainer.st-key-date-input .st-af:focus-within {
+    border-color: var(--task-input-focus-border) !important;
+    box-shadow: var(--task-input-focus-shadow) !important;
+}
+
+/* Ensure modal appears above all Streamlit elements */
+.stVerticalBlock.st-key-modal-overlay {
+    z-index: 9999 !important;
+}
 """
 
+
+
+
 def dashboard_page():
+    if(st.session_state["user"].theme == "Light"):
+        root_theme = root_variables[0] #light theme
+    else:
+        root_theme = root_variables[1] #dark theme
+    root_style = f"""
+    {root_theme}
+    """
+
+    if(st.session_state["modal_show"] == False):
+        model_display = modal_variable[0]
+    else:
+        model_display = modal_variable[1]
+    
+
+    styles = f"""
+    <style>
+    {root_style}
+    {remove_header_footer}
+    {page_setup}
+    {header_styles}
+    {kpi_styles}
+    {chart_styles}
+    {empty_date_styles}
+    {fill_date_styles}
+    {model_display}
+    {modal_style}
+    </style>
+    """
     st.markdown(styles,unsafe_allow_html=True)
 
     with st.container(key = "header"):
         with st.container(key = "header-main"):
             with st.container(key = "logo-section"):
                 st.markdown(
-                    """
+                    f"""
                     <div class="logo">
                         <svg class="logo-user-icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
                             <path d="M20,21V19a4,4,0,0,0-4-4H8a4,4,0,0,0-4,4v2"></path>
@@ -2433,8 +2905,8 @@ def dashboard_page():
                         </svg>
                     </div>
                     <div class="brand-info">
-                        <h1>TaskFlow</h1>
-                        <p>Your productivity companion</p>
+                        <h1>{st.session_state["user"].name}</h1>
+                        <p>{st.session_state["user"].email}</p>
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -2469,7 +2941,7 @@ def dashboard_page():
                     )
 
                 with st.container(key = "header-actions"):
-                    toggle_icon = ":material/dark_mode:" if (st.session_state["theme"] == 'light') else ":material/light_mode:"
+                    toggle_icon = ":material/dark_mode:" if (st.session_state["user"].theme == 'Light') else ":material/light_mode:"
                     st.button(
                         label="",
                         type="tertiary",
@@ -2641,11 +3113,13 @@ def dashboard_page():
                 label="Add Date",
                 type="secondary",
                 key = "add-date-btn-1",
-                icon = ":material/add:"
+                icon = ":material/add:",
+                on_click=modal_toggle
             )
 
         with st.container(key = "tasksContainer"):
-            if(len(dates_data.keys()) <= 0):
+            user_task = st.session_state["user_task"].show_user_task
+            if(user_task is None):
                 with st.container(key = "empty-state"):
                     st.markdown(
                         """
@@ -2673,12 +3147,13 @@ def dashboard_page():
                         label="Add Your First Date",
                         type="secondary",
                         key = "add-date-btn-2",
-                        icon = ":material/add:"
+                        icon = ":material/add:",
+                        on_click=modal_toggle
                     )
             else:
                 with st.container(key = "tasks-grid"):
                     task_count = 0
-                    for date_count in range(len(dates_data.keys())):
+                    for date_count in range(len(user_task.keys())):
                         with st.container(key = f"date-card-{date_count+1}"):
                             with st.container(key = f"task-card-header-{date_count+1}"):
                                 st.markdown(
@@ -2691,10 +3166,10 @@ def dashboard_page():
                                                 <line x1="8" y1="2" x2="8" y2="6"></line>
                                                 <line x1="3" y1="10" x2="21" y2="10"></line>
                                             </svg>
-                                            <h3>{get_date_detail(list(dates_data.keys())[date_count])}</h3>
+                                            <h3>{get_date_detail(list(user_task.keys())[date_count])}</h3>
                                         </div>
-                                        <span class="date-badge {get_badge_status(dates_data[list(dates_data.keys())[date_count]])}">
-                                            {get_task_status(dates_data[list(dates_data.keys())[date_count]])}
+                                        <span class="date-badge {get_badge_status(user_task[list(user_task.keys())[date_count]])}">
+                                            {get_task_status(user_task[list(user_task.keys())[date_count]])}
                                         </span>
                                     </div>
                                     """,
@@ -2707,11 +3182,11 @@ def dashboard_page():
                                     key = f"remove-date-btn-{date_count+1}"
                                 )
 
-                            if(get_task_exist(dates_data[list(dates_data.keys())[date_count]])):
+                            if(get_task_exist(user_task[list(user_task.keys())[date_count]])):
                                 st.markdown(
                                     f"""
                                     <div class="progress-bar">
-                                        <div class="progress-fill" style="width: {get_progress_percent(dates_data[list(dates_data.keys())[date_count]])}%;"></div>
+                                        <div class="progress-fill" style="width: {get_progress_percent(user_task[list(user_task.keys())[date_count]])}%;"></div>
                                     </div>
                                     """,
                                     unsafe_allow_html=True
@@ -2733,7 +3208,7 @@ def dashboard_page():
                                 )
                             
                             with st.container(key = f"task-list-{date_count+1}"):
-                                if(not(get_task_exist(dates_data[list(dates_data.keys())[date_count]]))):
+                                if(not(get_task_exist(user_task[list(user_task.keys())[date_count]]))):
                                     st.markdown(
                                         """
                                         <div class="no-tasks">
@@ -2752,7 +3227,7 @@ def dashboard_page():
                                         unsafe_allow_html=True
                                     )
                                 else:
-                                    current_date_task = dates_data[list(dates_data.keys())[date_count]]
+                                    current_date_task = user_task[list(user_task.keys())[date_count]]
                                     for current_task,current_task_status in current_date_task.items():
                                         if(current_task_status == "Incomplete"):
                                             with st.container(key = f"task-item-{task_count+1}"):
@@ -2766,7 +3241,7 @@ def dashboard_page():
                                                     type = "tertiary",
                                                     key = f"remove-task-btn-{task_count+1}"
                                                 )
-                                        elif(current_task_status == "Complete"):
+                                        elif(current_task_status == "Completed"):
                                             with st.container(key = f"task-completed-item-{task_count+1}"):
                                                 check = st.checkbox(
                                                     label=current_task,
@@ -2781,4 +3256,70 @@ def dashboard_page():
                                                 )
                                         task_count += 1                
 
-dashboard_page()
+    with st.container(key = "modal-overlay"):
+        with st.container(key = "modal"):
+            st.markdown(
+                """
+                <div class="modal-header">
+                    <div class="modal-header-content">
+                        <div class="modal-icon">
+                            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="#4e598c" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </div>
+                        <div class = "modal-section">
+                            <h3 class="modal-title">Add New Date</h3>
+                            <p class="modal-description">Select a date to start tracking your tasks</p>
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            with st.container(key = "modal-content"):
+                with st.container(key = "addDateForm"):
+                    with st.container(key = "date-input-container"):
+                        with st.container(key = "form-section"):
+                            manual_date = st.date_input(
+                                key = "date-input",
+                                label="manual-date",
+                                label_visibility="collapsed"
+                            )
+
+                    st.markdown(
+                        f"""
+                        <div class="date-preview" id="datePreview" style="display: block;">
+                            <div class="date-preview-content">
+                                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="#4e598c" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                <span class="date-preview-label">Selected date:</span>
+                                <span class="date-preview-value" id="selectedDatePreview">{get_date_detail(str(manual_date))}</span>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                    with st.container(key = "modal-actions"):
+                        st.button(
+                            label="Cancel",
+                            key = "btn-cancel",
+                            type="secondary",
+                            on_click=modal_toggle
+                        )
+
+                        st.button(
+                            label="Add Date",
+                            key = "btn-submit",
+                            icon=":material/add:",
+                            type="secondary"
+                        )
+

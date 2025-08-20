@@ -5,7 +5,7 @@ USE task_flow;
 -- 1️⃣ Users table
 CREATE TABLE users (
     user_id VARCHAR(20) PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
+    username VARCHAR(50) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(512) NOT NULL,
     theme ENUM('Light', 'Dark') DEFAULT 'Light',
