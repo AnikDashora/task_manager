@@ -9,9 +9,6 @@ sys.path.append(parent_dir)
 
 from backend.database import SqlConnection
 
-import pandas as pd
-
-import pandas as pd
 
 class PlanDate:
     def __init__(self):

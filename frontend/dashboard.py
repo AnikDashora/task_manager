@@ -9,105 +9,27 @@ sys.path.append(parent_dir)
 from models.task_model import UserTasks
 from models.user_model import User
 from models.task_model import UserTasks
+from backend.analytics import KpiServices,GraphServices
+from backend.tasks import TaskSerives
 
-def get_date_detail(date_str: str) -> str:
-    """
-    Convert a date string into 'Today', 'Tomorrow', 'Yesterday',
-    or a formatted full date.
-    """
-    input_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    today = date.today()
 
-    if input_date == today:
-        return "Today"
-    elif input_date == today + timedelta(days=1):
-        return "Tomorrow"
-    elif input_date == today - timedelta(days=1):
-        return "Yesterday"
-    else:
-        return input_date.strftime("%a %b-%d, %Y")
-
-def get_badge_status(current_date_task: dict) -> str:
-    """
-    Determine badge status for a given day's tasks.
-
-    Args:
-        current_date_task (dict): Dictionary of tasks {"Task 1": "Complete", "Task 2": "Incomplete"}
-
-    Returns:
-        str: Badge status -> "badge-complete", "badge-medium", "badge-no-tasks"
-    """
-    if not current_date_task:  # no tasks
-        return "badge-no-tasks"
-
-    statuses = list(current_date_task.values())
-
-    if all(s == "Completed" for s in statuses):
-        return "badge-complete"
-    elif any(s == "Incomplete" for s in statuses):
-        return "badge-medium"
-    else:
-        return "badge-no-tasks"
-
-def get_task_status(current_date_task: dict) -> str:
-    """
-    Return task status for a given day's tasks.
-
-    Args:
-        current_date_task (dict): {"Task 1": "Complete", "Task 2": "Incomplete"}
-
-    Returns:
-        str: "No Task" if no tasks,
-             otherwise "X/Y" where X = completed tasks, Y = total tasks
-    """
-    if not current_date_task:  # no tasks
-        return "No Task"
-
-    total_tasks = len(current_date_task)
-    completed_tasks = sum(1 for status in current_date_task.values() if status == "Complete")
-
-    return f"{completed_tasks}/{total_tasks}"
-
-def get_progress_percent(current_date_task: dict) -> int:
-    if not current_date_task:  # no tasks
-        return 0
-
-    total_tasks = len(current_date_task)
-    completed_tasks = sum(1 for status in current_date_task.values() if status == "Complete")
-    if(completed_tasks == 0 or total_tasks == 0):
-        return 0
-    else:
-        return int((completed_tasks/total_tasks)*100)
-
-def get_task_exist(current_date_tasks: dict) -> bool:
-    """
-    Check if tasks exist for the given date.
-
-    Args:
-        current_date_tasks (dict): {"Task 1": "Complete", "Task 2": "Incomplete"}
-
-    Returns:
-        bool: True if there is at least one task, False otherwise
-    """
-    return bool(current_date_tasks)
-
-def if_task_completed(current_task: str, current_date_task: dict) -> bool:
-    """
-    Check if a specific task is completed.
-
-    Args:
-        current_task (str): Task name (key in the dict)
-        current_date_task (dict): {"Task 1": "Complete", "Task 2": "Incomplete"}
-
-    Returns:
-        bool: True if the task exists and is marked 'Complete', else False
-    """
-    return current_date_task.get(current_task) == "Completed"
-
-def make_grapg(total_task_all_day=12, completed_task=None, days=31,
-               completed_color="#4caf50", remaining_color="#9fa8da", line_color="orange"):
+def make_graph(total_task_all_day=12, completed_task=None, days=31,
+               completed_color="#4caf50", remaining_color="#9fa8da", line_color="orange",
+               show_bars=True):
     """
     Generate ECharts options for a task progress graph.
+
+    Args:
+        total_task_all_day (int): Max tasks in a day.
+        completed_task (list): List of completed tasks per day. If None → random values.
+        days (int): Number of days to display.
+        completed_color (str): Color for completed bar.
+        remaining_color (str): Color for remaining bar.
+        line_color (str): Color for percentage line.
+        show_bars (bool): If False → only show percentage line.
+
+    Returns:
+        dict: ECharts options
     """
 
     # Generate random data if not provided
@@ -120,21 +42,19 @@ def make_grapg(total_task_all_day=12, completed_task=None, days=31,
     if total_task_all_day <= 0:
         raise ValueError("total_task_all_day must be positive")
 
-    # Ensure values are within range
+    # Clip values into range [0, total_task_all_day]
     completed_task = [min(max(0, val), total_task_all_day) for val in completed_task]
 
-    # Dates for X-axis
+    # Dates for X-axis → past days
     today = date.today()
     if days > 31:
-        # Show month+day for longer ranges
-        x_labels = [(today + timedelta(days=i)).strftime("%b %d") for i in range(days)]
+        x_labels = [(today - timedelta(days=days - i - 1)).strftime("%b %d") for i in range(days)]
     else:
-        # Show weekday+day for shorter ranges
-        x_labels = [(today + timedelta(days=i)).strftime("%a %d") for i in range(days)]
+        x_labels = [(today - timedelta(days=days - i - 1)).strftime("%a %d") for i in range(days)]
 
     # Calculations
     total_task_remaining = [total_task_all_day - c for c in completed_task]
-    completed_percentage = [(c / total_task_all_day) * 100 for c in completed_task]
+    completed_percentage = [round((c / total_task_all_day) * 100, 2) for c in completed_task]
 
     # Base chart options
     options = {
@@ -151,8 +71,8 @@ def make_grapg(total_task_all_day=12, completed_task=None, days=31,
         "series": []
     }
 
-    # For <= 31 days → show bar + line
-    if days <= 31:
+    # Bar series (optional)
+    if show_bars:
         options["series"].extend([
             {
                 "name": "Completed Task", "type": "bar", "stack": "total",
@@ -164,7 +84,7 @@ def make_grapg(total_task_all_day=12, completed_task=None, days=31,
             }
         ])
 
-    # Line chart (always show %)
+    # Line chart for %
     options["series"].append(
         {
             "name": "Percentage", "type": "line", "yAxisIndex": 1,
@@ -336,6 +256,8 @@ root_variables = [# 0 for light theme and 1 for dark theme
         }
     """
 ]
+
+chart_theme_variable = [["#fff","#333","#4c9f70"],["#1f1f1f","#e5e7eb","#10b981"]]
 
 modal_variable = [# 0 for none and 1 for show
     """
@@ -2864,8 +2786,10 @@ p {
 def dashboard_page():
     if(st.session_state["user"].theme == "Light"):
         root_theme = root_variables[0] #light theme
+        chart_theme = chart_theme_variable[0]
     else:
         root_theme = root_variables[1] #dark theme
+        chart_theme = chart_theme_variable[1]
     root_style = f"""
     {root_theme}
     """
@@ -2890,7 +2814,10 @@ def dashboard_page():
     {modal_style}
     </style>
     """
+    
     st.markdown(styles,unsafe_allow_html=True)
+
+    user_score = KpiServices.analysis_user_stats(st.session_state["user_task"].plan_status)
 
     with st.container(key = "header"):
         with st.container(key = "header-main"):
@@ -2914,7 +2841,7 @@ def dashboard_page():
             with st.container(key = "header-right"):
                 with st.container(key = "stats-container"):
                     st.markdown(
-                        """
+                        f"""
                         <div class="stat-item">
                             <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="#4e598c" stroke-width="2">
                                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -2922,7 +2849,7 @@ def dashboard_page():
                                 <line x1="8" y1="2" x2="8" y2="6"></line>
                                 <line x1="3" y1="10" x2="21" y2="10"></line>
                             </svg>
-                            <span class="stat-number" id="totalDatesCount">0</span>
+                            <span class="stat-number" id="totalDatesCount">{user_score["total_dates"]}</span>
                             <span class="stat-label">dates</span>
                         </div>
                         <div class="stat-divider"></div>
@@ -2932,7 +2859,7 @@ def dashboard_page():
                                 <line x1="12" y1="20" x2="12" y2="4"></line>
                                 <line x1="6" y1="20" x2="6" y2="14"></line>
                             </svg>
-                            <span class="stat-number" id="totalTasksCount">0/0</span>
+                            <span class="stat-number" id="totalTasksCount">{user_score["sum_completed_tasks"]}/{user_score["sum_total_tasks"]}</span>
                             <span class="stat-label">done</span>
                         </div>
                         """,
@@ -2958,13 +2885,13 @@ def dashboard_page():
     with st.container(key = "kpi-section"):
         with st.container(key = "kpi-container"):
             st.markdown(#card completion
-                """
+                f"""
                 <div class="card completion">
                     <div class="card-content">
                         <div class="card-info">
                             <p class="card-title">Average Completion</p>
                             <div class="card-value-container">
-                                <span class="card-value" id="avgCompletionRate">0.0%</span>
+                                <span class="card-value" id="avgCompletionRate">{user_score["avg_completion_percentage"]}%</span>
                             </div>
                         </div>
                         <div class="card-icon completion-icon">
@@ -2983,14 +2910,14 @@ def dashboard_page():
                 unsafe_allow_html=True
             )
             st.markdown(#card progress
-                """
+                f"""
                 <div class="card progress">
                     <div class="card-content">
                         <div class="card-info">
                             <p class="card-title">Total Progress</p>
                             <div class="card-value-container">
-                                <span class="card-value" id="totalProgress">0/0</span>
-                                <span class="card-badge" id="totalProgressPercentage">0%</span>
+                                <span class="card-value" id="totalProgress">{user_score["sum_completed_tasks"]}/{user_score["sum_total_tasks"]}</span>
+                                <span class="card-badge" id="totalProgressPercentage">{user_score["avg_completion_percentage"]}%</span>
                             </div>
                         </div>
                         <div class="card-icon progress-icon">
@@ -3005,13 +2932,13 @@ def dashboard_page():
                 unsafe_allow_html=True
             )
             st.markdown(#card days
-                """
+                f"""
                 <div class="card days">
                     <div class="card-content">
                         <div class="card-info">
                             <p class="card-title">Active Days</p>
                             <div class="card-value-container">
-                                <span class="card-value" id="activeDays">0</span>
+                                <span class="card-value" id="activeDays">{user_score["active_days"]}</span>
                                 <span class="card-badge">Tracked</span>
                             </div>
                         </div>
@@ -3031,13 +2958,13 @@ def dashboard_page():
                 unsafe_allow_html=True
             )
             st.markdown(#card attention
-                """
+                f"""
                 <div class="card attention">
                     <div class="card-content">
                         <div class="card-info">
                             <p class="card-title">Needs Attention</p>
                             <div class="card-value-container">
-                                <span class="card-value" id="incompleteCount">0</span>
+                                <span class="card-value" id="incompleteCount">{user_score["incomplete_tasks_list"]}</span>
                                 <span class="card-badge" id="attentionBadge">All Good</span>
                             </div>
                         </div>
@@ -3078,8 +3005,8 @@ def dashboard_page():
                                 """,
                                 unsafe_allow_html=True
                             )
-                            filter_option = ["All Time","Current Month","Month","Year"]
-                            st.selectbox(
+                            filter_option = ["All Time","Current Month","Last Month","Month","Year"]
+                            filters = st.selectbox(
                                 label="Filter Time",
                                 options=filter_option,
                                 index = 1,
@@ -3096,7 +3023,7 @@ def dashboard_page():
             with st.container(key = "chart-content"):
                 with st.container(key = "chart-container"):
 
-                    option = make_grapg()    
+                    option = GraphServices.graph_analysis(st.session_state["user_task"].plan_status,filters,chart_theme[0],chart_theme[1],chart_theme[2])    
                     st_echarts(
                         options = option,
                         key = "taskChart"
@@ -3152,7 +3079,8 @@ def dashboard_page():
             else:
                 with st.container(key = "tasks-grid"):
                     task_count = 0
-                    for date_count in range(len(user_task.keys())):
+                    user_all_dates = list(user_task.keys())
+                    for date_count in range(len(user_all_dates)):#itter over the list of task dict keys {date:{tasks:status},} (give dates)
                         with st.container(key = f"date-card-{date_count+1}"):
                             with st.container(key = f"task-card-header-{date_count+1}"):
                                 st.markdown(
@@ -3165,10 +3093,10 @@ def dashboard_page():
                                                 <line x1="8" y1="2" x2="8" y2="6"></line>
                                                 <line x1="3" y1="10" x2="21" y2="10"></line>
                                             </svg>
-                                            <h3>{get_date_detail(list(user_task.keys())[date_count])}</h3>
+                                            <h3>{TaskSerives.get_date_detail(user_all_dates[date_count])}</h3>
                                         </div>
-                                        <span class="date-badge {get_badge_status(user_task[list(user_task.keys())[date_count]])}">
-                                            {get_task_status(user_task[list(user_task.keys())[date_count]])}
+                                        <span class="date-badge {TaskSerives.get_badge_status(user_task[user_all_dates[date_count]])}">
+                                            {TaskSerives.get_task_status(user_task[user_all_dates[date_count]])}
                                         </span>
                                     </div>
                                     """,
@@ -3181,11 +3109,11 @@ def dashboard_page():
                                     key = f"remove-date-btn-{date_count+1}"
                                 )
 
-                            if(get_task_exist(user_task[list(user_task.keys())[date_count]])):
+                            if(TaskSerives.get_task_exist(user_task[user_all_dates[date_count]])):
                                 st.markdown(
                                     f"""
                                     <div class="progress-bar">
-                                        <div class="progress-fill" style="width: {get_progress_percent(user_task[list(user_task.keys())[date_count]])}%;"></div>
+                                        <div class="progress-fill" style="width: {TaskSerives.get_progress_percent(user_task[user_all_dates[date_count]])}%;"></div>
                                     </div>
                                     """,
                                     unsafe_allow_html=True
@@ -3207,7 +3135,7 @@ def dashboard_page():
                                 )
                             
                             with st.container(key = f"task-list-{date_count+1}"):
-                                if(not(get_task_exist(user_task[list(user_task.keys())[date_count]]))):
+                                if(not(TaskSerives.get_task_exist(user_task[user_all_dates[date_count]]))):
                                     st.markdown(
                                         """
                                         <div class="no-tasks">
@@ -3226,7 +3154,7 @@ def dashboard_page():
                                         unsafe_allow_html=True
                                     )
                                 else:
-                                    current_date_task = user_task[list(user_task.keys())[date_count]]
+                                    current_date_task = user_task[user_all_dates[date_count]]
                                     for current_task,current_task_status in current_date_task.items():
                                         if(current_task_status == "Incomplete"):
                                             with st.container(key = f"task-item-{task_count+1}"):
@@ -3300,7 +3228,7 @@ def dashboard_page():
                                     <line x1="3" y1="10" x2="21" y2="10"></line>
                                 </svg>
                                 <span class="date-preview-label">Selected date:</span>
-                                <span class="date-preview-value" id="selectedDatePreview">{get_date_detail(str(manual_date))}</span>
+                                <span class="date-preview-value" id="selectedDatePreview">{TaskSerives.get_date_detail(str(manual_date))}</span>
                             </div>
                         </div>
                         """,
