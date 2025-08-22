@@ -8,7 +8,6 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 from models.task_model import UserTasks
 from models.user_model import User
-from models.task_model import UserTasks
 from backend.analytics import KpiServices,GraphServices
 from backend.tasks import TaskSerives
 
@@ -103,6 +102,10 @@ def change_theme():
 
 def modal_toggle():
     st.session_state["modal_show"] = not(st.session_state["modal_show"])
+
+def add_user_date(user_id,tasks,new_date):
+    TaskSerives.add_date(user_id,tasks,new_date)
+    modal_toggle()
 
 root_variables = [# 0 for light theme and 1 for dark theme
     """:root{
@@ -1156,7 +1159,7 @@ chart_styles = """
     align-items: center !important;
     justify-content: center !important;
     color: var(--filter-icon-color) !important;
-    width: 12px !important;
+    width: fit-content !important;
     height: 12px !important;
     flex-shrink: 0 !important;
 }
@@ -3044,8 +3047,8 @@ def dashboard_page():
             )
 
         with st.container(key = "tasksContainer"):
-            user_task = st.session_state["user_task"].show_user_task
-            if(user_task is None):
+            user_tasks = st.session_state["user_task"].show_user_task
+            if(not user_tasks):
                 with st.container(key = "empty-state"):
                     st.markdown(
                         """
@@ -3079,7 +3082,7 @@ def dashboard_page():
             else:
                 with st.container(key = "tasks-grid"):
                     task_count = 0
-                    user_all_dates = list(user_task.keys())
+                    user_all_dates = list(user_tasks.keys())
                     for date_count in range(len(user_all_dates)):#itter over the list of task dict keys {date:{tasks:status},} (give dates)
                         with st.container(key = f"date-card-{date_count+1}"):
                             with st.container(key = f"task-card-header-{date_count+1}"):
@@ -3095,8 +3098,8 @@ def dashboard_page():
                                             </svg>
                                             <h3>{TaskSerives.get_date_detail(user_all_dates[date_count])}</h3>
                                         </div>
-                                        <span class="date-badge {TaskSerives.get_badge_status(user_task[user_all_dates[date_count]])}">
-                                            {TaskSerives.get_task_status(user_task[user_all_dates[date_count]])}
+                                        <span class="date-badge {TaskSerives.get_badge_status(user_tasks[user_all_dates[date_count]])}">
+                                            {TaskSerives.get_task_status(user_tasks[user_all_dates[date_count]])}
                                         </span>
                                     </div>
                                     """,
@@ -3106,14 +3109,20 @@ def dashboard_page():
                                     label = "",
                                     icon=":material/delete:",
                                     type = "tertiary",
-                                    key = f"remove-date-btn-{date_count+1}"
+                                    key = f"remove-date-btn-{date_count+1}",
+                                    on_click=TaskSerives.delete_date,
+                                    args=(
+                                        st.session_state["user"].user_id,
+                                        st.session_state["user_task"],
+                                        user_all_dates[date_count],
+                                    )
                                 )
 
-                            if(TaskSerives.get_task_exist(user_task[user_all_dates[date_count]])):
+                            if(TaskSerives.get_task_exist(user_tasks[user_all_dates[date_count]])):
                                 st.markdown(
                                     f"""
                                     <div class="progress-bar">
-                                        <div class="progress-fill" style="width: {TaskSerives.get_progress_percent(user_task[user_all_dates[date_count]])}%;"></div>
+                                        <div class="progress-fill" style="width: {TaskSerives.get_progress_percent(user_tasks[user_all_dates[date_count]])}%;"></div>
                                     </div>
                                     """,
                                     unsafe_allow_html=True
@@ -3135,7 +3144,7 @@ def dashboard_page():
                                 )
                             
                             with st.container(key = f"task-list-{date_count+1}"):
-                                if(not(TaskSerives.get_task_exist(user_task[user_all_dates[date_count]]))):
+                                if(not(TaskSerives.get_task_exist(user_tasks[user_all_dates[date_count]]))):
                                     st.markdown(
                                         """
                                         <div class="no-tasks">
@@ -3154,7 +3163,7 @@ def dashboard_page():
                                         unsafe_allow_html=True
                                     )
                                 else:
-                                    current_date_task = user_task[user_all_dates[date_count]]
+                                    current_date_task = user_tasks[user_all_dates[date_count]]
                                     for current_task,current_task_status in current_date_task.items():
                                         if(current_task_status == "Incomplete"):
                                             with st.container(key = f"task-item-{task_count+1}"):
@@ -3247,6 +3256,12 @@ def dashboard_page():
                             label="Add Date",
                             key = "btn-submit",
                             icon=":material/add:",
-                            type="secondary"
+                            type="secondary",
+                            on_click=add_user_date,
+                            args=(
+                                st.session_state["user"].user_id,
+                                st.session_state["user_task"],
+                                str(manual_date),
+                            )
                         )
 
