@@ -367,6 +367,14 @@ class TaskSerives:
         return True
 
     @staticmethod
+    def add_task(user_id,user_tasks_obj,date,task):
+        pass
+
+    @staticmethod
+    def add_task_databases(user_id,user_tasks_obj,date,task):
+        pass
+
+    @staticmethod
     def get_date_detail(date_str: str) -> str:
         """
         Convert a date string into 'Today', 'Tomorrow', 'Yesterday',
